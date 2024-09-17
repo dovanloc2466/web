@@ -1,8 +1,13 @@
 // src/components/ChatList.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { List, Input, Button, Select, Typography } from 'antd';
 import styled from 'styled-components';
+import { PhoneNumber } from './ChatLayout';
+import FetchNewChatJob from './FetchNewChatJob';
+import axios from 'axios';
+import API_URL from '../config';
+import { useChat } from '../ChatContext';
 
 const { Title } = Typography;
 
@@ -16,10 +21,6 @@ const chats: Chat[] = [
   { id: 2, name: 'Chat 2' },
 ];
 
-const phoneNumbers = [
-  '+84123456789',
-  '+84987654321',
-];
 
 const ChatListContainer = styled.div`
   padding: 20px;
@@ -28,23 +29,6 @@ const ChatListContainer = styled.div`
 
 const ChatListHeader = styled(Title)`
   margin-bottom: 20px !important;
-`;
-
-const PhoneSelect = styled(Select)`
-  width: 100%;
-  margin-bottom: 16px;
-`;
-
-const AddChatGroup = styled(Input.Group)`
-  display: flex !important  ;
-  margin-bottom: 16px;  
-`;
-
-const AddChatInput = styled(Input)`
-  flex: 1;
-`;
-
-const AddChatButton = styled(Button)`
 `;
 
 const StyledList = styled(List)`
@@ -69,34 +53,58 @@ const StyledLink = styled(Link)`
   font-weight: 500;
 `;
 
-const ChatList: React.FC = () => {
-  const [selectedPhone, setSelectedPhone] = useState<string | undefined>(undefined);
+const ChatList: React.FC<{ listphone: PhoneNumber | undefined }> = ({ listphone }: { listphone: any }) => {
+  const { clients, setClients } = useChat();
+  const handleGetContact = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('Token not found in local storage');
+        return;
+      }
+      const res = await axios.get(API_URL + 'textnow/get-all-messages', {
+        params: {
+          pageSize: 10,
+
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setClients(res.data);
+    } catch (error) {
+      console.error('Error fetching contact:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (listphone) {
+      const interval = setInterval(handleGetContact, 20000);
+      return () => clearInterval(interval);
+    }
+  }, [listphone]);
+
+  useEffect(() => {
+    if (listphone) {
+      handleGetContact();
+    }
+  }, [listphone]);
+
 
   return (
     <ChatListContainer>
-      <ChatListHeader level={3}>Chat List</ChatListHeader>
-      <PhoneSelect
-        placeholder="Select phone number"
-        onChange={(value: any) => setSelectedPhone(value)}
-      >
-        {phoneNumbers.map((number) => (
-          <Select.Option key={number} value={number}>
-            {number}
-          </Select.Option>
-        ))}
-      </PhoneSelect>
-      <AddChatGroup compact>
-        <AddChatInput placeholder="Enter name" />
-        <AddChatButton type="primary">Add</AddChatButton>
-      </AddChatGroup>
-      <StyledList
-        dataSource={chats}
-        renderItem={(chat: any) => (
-          <StyledListItem>
-            <StyledLink to={`/chat/${chat.id}`}>{chat.name}</StyledLink>
-          </StyledListItem>
-        )}
-      />
+      <ChatListHeader level={3}>Phone Number List</ChatListHeader>
+      {clients.length > 0 && (<StyledList
+        dataSource={listphone}
+        renderItem={(chat: any) => {
+          return (
+            <FetchNewChatJob chat={chat} />
+          )
+        }}
+      />)}
+
+
     </ChatListContainer>
   );
 };

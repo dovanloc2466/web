@@ -1,31 +1,35 @@
 // src/AppRouter.tsx
+import axios from 'axios';
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import { Layout, Dropdown, Avatar, Menu } from 'antd';
-import ChatList from './components/ChatList';
-import ChatWindow from './components/ChatWindow';
-import { UserOutlined } from '@ant-design/icons';
+import { BrowserRouter as Router } from 'react-router-dom';
+import ChatLayout from './components/ChatLayout';
 import Login from './components/Login';
-const { Header, Content, Sider } = Layout;
+import API_URL from './config'; // Import URL từ file config
+import { ChatProvider } from './ChatContext';
 
 const AppRouter: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
   useEffect(() => {
-    const storedAuth = localStorage.getItem('isAuthenticated');
-    if (storedAuth === 'true') {
+    const storedAuth = localStorage.getItem('token');
+    if (storedAuth) {
       setIsAuthenticated(true);
     }
   }, []);
 
-  const handleLogin = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem('isAuthenticated', 'true');
-  };
-
+  const handleLogin = async (values: any) => {
+    try {
+      const response = await axios.post(API_URL + "auth/login", values);
+      localStorage.setItem('token', response.data.token);
+      setIsAuthenticated(true)
+    } catch (err) {
+      console.error('Login failed:', err);
+      setIsAuthenticated(false)
+    }
+  }
   const handleLogout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('token');
   };
 
   if (!isAuthenticated) {
@@ -33,44 +37,12 @@ const AppRouter: React.FC = () => {
   }
 
   return (
-    <Router>
-      <Layout style={{ height: '100vh' }}>
-        <Layout>
-          <Header style={{ background: '#fff', padding: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <img src="/logo192.png" alt="Logo" style={{ height: '32px', marginLeft: '16px', marginRight: '16px' }} />
-              <h2 style={{ margin: '0' }}>Chat Application</h2>
-            </div>
-            <Dropdown
-              overlay={
-                <Menu>
-                  <Menu.Item key="logout" onClick={handleLogout}>
-                    Logout
-                  </Menu.Item>
-                </Menu>
-              }
-              trigger={['click']}
-            >
-              <Avatar style={{ margin: '16px' }} icon={<UserOutlined />} />
-            </Dropdown>
-          </Header>
-          <Layout>
-            <Sider width={300} style={{ background: '#f0f2f5' }}>
-              <ChatList />
-            </Sider>
-            <Content style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ flex: 1 }}>
-                <Routes>
-                  <Route path="/chat/:id" element={<ChatWindow />} />
-                  <Route path="/" element={<div>Select a chat</div>} />
-                  <Route path="/login" element={<Navigate to="/" replace />} />
-                </Routes>
-              </div>
-            </Content>
-          </Layout>
-        </Layout>
-      </Layout>
-    </Router>
+    <ChatProvider>
+      <Router>
+        <ChatLayout handleLogout={handleLogout} />
+      </Router>
+    </ChatProvider>
+
   );
 };
 

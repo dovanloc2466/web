@@ -7,7 +7,7 @@ const { Title } = Typography;
 const { Content } = Layout;
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (values: any) => void;
 }
 
 const LoginContainer = styled(Content)`
@@ -29,9 +29,8 @@ const LoginForm = styled(Form)`
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const onFinish = (values: any) => {
     console.log('Received values of form: ', values);
-    // Fake user authentication
-    if (values.username === 'testuser' && values.password === 'password123') {
-      onLogin();
+    if (values.username && values.password) {
+      onLogin(values);
     } else {
       console.log('Login failed: Invalid credentials');
     }
