@@ -1,10 +1,10 @@
 // src/components/ChatList.tsx
 import { List } from 'antd';
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useChat } from '../ChatContext';
-
+import { parsePhoneNumber } from 'libphonenumber-js';
 
 const StyledListItem = styled(List.Item)`
   padding: 12px 20px !important;
@@ -12,6 +12,10 @@ const StyledListItem = styled(List.Item)`
 
   &:hover {
     background-color: #f5f5f5;
+  }
+
+  &[data-highlighted="true"] {
+    background-color: #e6f7ff;
   }
 `;
 
@@ -33,10 +37,13 @@ const StyledLinkDisable = styled.div`
 
 const FetchNewChatJob: React.FC<{ chat: any }> = ({ chat }: { chat: any }) => {
   const { clients } = useChat();
+  const { id } = useParams<Record<string, string | undefined>>();
+
+  const phoneNumber = parsePhoneNumber(chat.phoneNumber, "US").formatNational()
 
   return (
-    <StyledListItem>
-      {clients.find(e => e.status == 'active' && e.clientId == chat.clientId) ? <StyledLink to={`/chat/${chat.clientId}`}>{chat.phoneNumber}</StyledLink> : <StyledLinkDisable>{chat.phoneNumber}</StyledLinkDisable>}
+    <StyledListItem data-highlighted={chat.clientId === id}>
+      {clients.find(e => e.status == 'active' && e.clientId == chat.clientId) ? <StyledLink to={`/chat/${chat.clientId}`}>{phoneNumber}</StyledLink> : <StyledLinkDisable>{phoneNumber}</StyledLinkDisable>}
     </StyledListItem>
   );
 };

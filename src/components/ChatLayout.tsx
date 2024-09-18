@@ -61,13 +61,10 @@ const ChatLayout = ({ handleLogout }: any) => {
                     </Dropdown>
                 </Header>
                 <Layout>
-                    <Sider width={300} style={{ background: '#f0f2f5' }}>
-                        {user?.phoneNumbers && (<ChatList listphone={user?.phoneNumbers as any} />)}
-                    </Sider>
                     <Content style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
                             <Routes>
-                                <Route path="/chat/:id" element={<ChatWindow />} />
+                                <Route path="/chat/:id" element={<ChatWindow user={user} />} />
                                 <Route path="/" element={<div style={{ fontWeight: 'bold', fontSize: 20 }}>Select a chat</div>} />
                                 <Route path="/login" element={<Navigate to="/" replace />} />
                             </Routes>

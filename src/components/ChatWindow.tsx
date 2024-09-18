@@ -1,14 +1,17 @@
 // src/components/ChatWindow.tsx
-import { Button, Input, List, Space, Tag, Typography, Form } from 'antd';
+import { CloseCircleOutlined } from '@ant-design/icons';
+import { Button, Form, Input, List, Space, Tag, Typography } from 'antd';
 import Sider from 'antd/es/layout/Sider';
-import React, { useRef, useState } from 'react';
+import axios from 'axios';
+import parsePhoneNumber from 'libphonenumber-js';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import styled from 'styled-components';
-import ChatContact from './ChatContact';
-import { CloseCircleOutlined } from '@ant-design/icons';
-import axios from 'axios';
-import API_URL from '../config';
 import { Message, useChat } from '../ChatContext';
+import API_URL from '../config';
+import ChatContact from './ChatContact';
+import ChatList from './ChatList';
+import { User } from './ChatLayout';
 
 const { Title } = Typography;
 
@@ -18,6 +21,7 @@ const ChatContainer = styled.div`
   height: calc(100vh - 64px);
   padding: 20px;
   flex:1;
+  justify-content: space-between;
 `;
 
 const ChatHeader = styled(Title)`
@@ -76,7 +80,7 @@ const ChatInput = styled(Input)`
 const SendButton = styled(Button)`
 `;
 
-const ChatWindow: React.FC = () => {
+const ChatWindow: React.FC<any> = ({ user }: { user: User }) => {
   const { id } = useParams<Record<string, string | undefined>>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -85,7 +89,7 @@ const ChatWindow: React.FC = () => {
   const [form] = Form.useForm();
 
   const location = useLocation();
-  const { clients } = useChat();
+  const { clients, setClients } = useChat();
 
   const getQueryParams = () => {
     const params = new URLSearchParams(location.search);
@@ -94,56 +98,45 @@ const ChatWindow: React.FC = () => {
 
   const contact = getQueryParams();
 
-  const handleSend = async () => {
+  useEffect(() => {
+    setData([]);
+    setNewChat(false);
+  }, [contact])
 
+  const handleSend = async () => {
     const token = localStorage.getItem('token');
-    const res = await axios.post(API_URL + 'textnow/send-message', { clientId: id, contactValue: contact, message: input, toName: contact, fromName: '' }, {
+    if (newChat) {
+      await axios.post(API_URL + 'textnow/send-messages', { clientId: id, contactValues: data, message: input, toName: '', fromName: '' }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      }
+      );
+    } else {
+      await axios.post(API_URL + 'textnow/send-message', { clientId: id, contactValue: contact, message: input, toName: contact, fromName: '' }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      }
+      );
+    }
+    const res = await axios.get(API_URL + 'textnow/get-message-details', {
+      params: { clientId: id, startMessageId: 1, contactValue: contact, pageSize: 100 },
       headers: {
         Authorization: `Bearer ${token}`,
       }
-    }
-    );
-    if (input.trim()) {
-      const newMessage: Message = {
-        id: Date.now(), // or any unique identifier
-        username: 'YourUsername', // replace with actual username
-        contact_value: "19062988308", // replace with actual contact value
-        e164_contact_value: "+19062988308", // replace with actual e164 format
-        contact_type: 1, // replace with actual contact type
-        contact_name: "Contact Name", // replace with actual contact name
-        message_direction: 1, // replace with actual message direction
-        message_type: 1, // replace with actual message type
-        message: input, // message content
-        read: false, // set read status
-        date: new Date().toISOString(), // current timestamp
-        deleted: false, // set deleted status
-      };
-      setMessages([...messages, newMessage]);
-      setInput('');
-    }
-  };
+    });
 
-
-  const formatPhoneNumber = (input: string): string => {
-    const cleaned = ('' + input).replace(/\D/g, '');
-    const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
-    if (match) {
-      return `(${match[1]}) ${match[2]}-${match[3]}`;
-    }
-
-    const formattedMatch = input.match(/^\((\d{3})\) (\d{3})-(\d{4})$/);
-    if (formattedMatch) {
-      return input;
-    }
-
-    return input;
+    setMessages(res.data.messages.slice().reverse())
+    setInput('');
   };
 
   const onFinish = (values: { inputValue: string }) => {
     if (values.inputValue.trim()) {
-      const formattedNumber = formatPhoneNumber(values.inputValue.trim());
-      if (formattedNumber !== values.inputValue.trim()) {
-        setData([...data, formattedNumber]);
+      const phoneNumber = parsePhoneNumber(values.inputValue.trim(), 'US')
+
+      if (phoneNumber?.isValid) {
+        setData([...data, phoneNumber.number.replace("+", "")]);
         form.resetFields();
       }
     }
@@ -155,66 +148,77 @@ const ChatWindow: React.FC = () => {
 
   const currentChat = clients.find(e => e.clientId == id)?.messages.filter(e => e.contact_value == contact);
 
+  useEffect(() => {
+    setMessages(currentChat || []);
+  }, [contact])
+
   return (
-    <div style={{ width: "100%", display: "flex" }}>
+    <>
       <Sider width={300} style={{ background: '#f0f2f5' }}>
-        <ChatContact newChat={() => {
-          setNewChat(true);
-        }} />
+        {user?.phoneNumbers && (<ChatList listphone={user?.phoneNumbers as any} />)}
       </Sider>
-      <ChatContainer>
-        <ChatHeader level={2}>Chat {contact}</ChatHeader>
-        {newChat && (
-          <Space direction="vertical" size="middle">
-            <Form form={form} onFinish={onFinish} layout="inline">
-              <Form.Item name="inputValue">
-                <Input placeholder="Input Phone Number" />
-              </Form.Item>
-              <Form.Item>
-                <Button type='primary' htmlType="submit">
-                  Add
-                </Button>
-              </Form.Item>
-            </Form>
-            <div style={{ marginTop: '10px' }}>
-              {data.map((e, index) => (
-                <Tag key={index} closeIcon={<CloseCircleOutlined />} onClose={() => removeTag(index)}>
-                  {e}
-                </Tag>
-              ))}
-            </div>
-          </Space>
-        )}
-        <MessageList
-          dataSource={currentChat}
-          renderItem={(msg: any) => (
-            <MessageItem isUser={msg.message_direction === 2}>
-              <div className="message-content">
-                <span className="message-sender">{msg.message_direction === 2 ? "Me" : msg.contact_name}</span>
-                <div className="message-bubble">
-                  {msg.message}
-                </div>
-                <span className="message-timestamp">
-                  {new Date(msg.date).toLocaleTimeString()} {msg.message_direction === 1 ? msg.read ? "Read" : "Unread" : ""}
-                </span>
+      <div style={{ width: "100%", display: "flex" }}>
+        <Sider width={300} style={{ background: '#f0f2f5' }}>
+          <ChatContact newChat={() => {
+            setNewChat(true);
+          }} />
+        </Sider>
+        <ChatContainer>
+          <ChatHeader level={2}>{!newChat && contact ? "Chat With: " + parsePhoneNumber(contact, 'US')?.formatNational() : ""} {newChat && (
+            <Space direction="vertical" size="middle">
+              <Form form={form} onFinish={onFinish} layout="inline">
+                <Form.Item name="inputValue">
+                  <Input placeholder="Input Phone Number" />
+                </Form.Item>
+                <Form.Item>
+                  <Button type='primary' htmlType="submit">
+                    Add
+                  </Button>
+                </Form.Item>
+              </Form>
+              <div style={{ marginTop: '10px' }}>
+                {data.map((e, index) => (
+                  <Tag key={index} closeIcon={<CloseCircleOutlined />} onClose={() => removeTag(index)}>
+                    {e}
+                  </Tag>
+                ))}
               </div>
-            </MessageItem>
-          )}
-        />
-        <InputGroup compact style={{ display: 'flex', gap: '0' }}>
-          <ChatInput
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
-            onPressEnter={handleSend}
-            style={{ flex: 1 }}
-          />
-          <SendButton type="primary" onClick={handleSend}>
-            Send
-          </SendButton>
-        </InputGroup>
-      </ChatContainer>
-    </div>
+            </Space>
+          )}</ChatHeader>
+
+          {contact && data.length === 0 && newChat === false && <MessageList
+            dataSource={messages}
+            renderItem={(msg: any) => (
+              <MessageItem isUser={msg.message_direction === 2}>
+                <div className="message-content">
+                  <span className="message-sender">{msg.message_direction === 2 ? "Me" : msg.contact_name}</span>
+                  <div className="message-bubble">
+                    {msg.message}
+                  </div>
+                  <span className="message-timestamp">
+                    {new Date(msg.date).toLocaleTimeString()} {msg.message_direction === 1 ? msg.read ? "Read" : "Unread" : ""}
+                  </span>
+                </div>
+              </MessageItem>
+            )}
+          />}
+
+          <InputGroup compact style={{ display: 'flex', gap: '0' }}>
+            <ChatInput
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type a message..."
+              onPressEnter={handleSend}
+              style={{ flex: 1 }}
+            />
+            <SendButton disabled={!contact && data.length === 0} type="primary" onClick={handleSend}>
+              Send
+            </SendButton>
+          </InputGroup>
+        </ChatContainer>
+      </div>
+    </>
+
 
   );
 };

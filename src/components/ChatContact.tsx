@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { useChat } from '../ChatContext';
+import parsePhoneNumber from 'libphonenumber-js'
 
 const { Title } = Typography;
 
@@ -34,6 +35,10 @@ const StyledListItem = styled(List.Item)`
   &:hover {
     background-color: #f5f5f5;
   }
+
+  &[data-highlighted="true"] {
+    background-color: #e6f7ff;
+  }
 `;
 
 const StyledLink = styled.div`
@@ -41,6 +46,7 @@ const StyledLink = styled.div`
   display: block;
   color: #1890ff;
   font-weight: 500;
+  cursor: pointer;
 `;
 
 const ChatContact: React.FC<any> = ({ newChat }: any) => {
@@ -69,15 +75,23 @@ const ChatContact: React.FC<any> = ({ newChat }: any) => {
     }
   }
 
+  const getQueryParams = () => {
+    const params = new URLSearchParams(location.search);
+    return params.get('contact');
+  };
+
+  const currentContact = getQueryParams();
+
   return (
     <ChatContactContainer>
       <ChatContactHeader level={3}>Contact List <Button onClick={newChat}>New Chat</Button></ChatContactHeader>
       <StyledList
         dataSource={contact}
         renderItem={(chat: any) => {
+          const phoneNumber = parsePhoneNumber(chat, "US")
           return (
-            <StyledListItem>
-              <StyledLink onClick={() => { setQueryParam("contact", chat) }}>{chat}</StyledLink>
+            <StyledListItem data-highlighted={currentContact === chat}>
+              <StyledLink onClick={() => { setQueryParam("contact", chat) }}>{phoneNumber?.formatNational()}</StyledLink>
             </StyledListItem>
           )
         }}

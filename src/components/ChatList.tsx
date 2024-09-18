@@ -8,6 +8,7 @@ import FetchNewChatJob from './FetchNewChatJob';
 import axios from 'axios';
 import API_URL from '../config';
 import { useChat } from '../ChatContext';
+import parsePhoneNumber from 'libphonenumber-js'
 
 const { Title } = Typography;
 
@@ -103,8 +104,6 @@ const ChatList: React.FC<{ listphone: PhoneNumber | undefined }> = ({ listphone 
           )
         }}
       />)}
-
-
     </ChatListContainer>
   );
 };
